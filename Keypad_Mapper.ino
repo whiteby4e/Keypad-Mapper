@@ -73,21 +73,39 @@ void printGeneratedCode() {
   uint8_t rowCount = 0;
   uint8_t colCount = 0;
 
-  // For a 4x4 matrix, each pin should participate in exactly 4 keys.
-  uint8_t degree[PIN_COUNT] = {};
+  /*
+   * A valid 4x4 matrix is a complete bipartite graph:
+   * every row is connected to all four columns.
+   * Use the first detected pin as one side of the matrix,
+   * then use its four connected pins as the opposite side.
+   */
+  const uint8_t referencePin = PINS[0];
 
   for (uint8_t i = 0; i < foundCount; ++i) {
-    for (uint8_t p = 0; p < PIN_COUNT; ++p) {
-      if (PINS[p] == found[i].first || PINS[p] == found[i].second) {
-        ++degree[p];
-      }
+    if (found[i].first == referencePin) {
+      if (colCount < 4) cols[colCount++] = found[i].second;
+    } else if (found[i].second == referencePin) {
+      if (colCount < 4) cols[colCount++] = found[i].first;
     }
   }
 
-  for (uint8_t p = 0; p < PIN_COUNT; ++p) {
-    if (degree[p] == 4) {
-      if (rowCount < 4) rows[rowCount++] = PINS[p];
-      else if (colCount < 4) cols[colCount++] = PINS[p];
+  if (colCount == 4) {
+    rows[rowCount++] = referencePin;
+
+    for (uint8_t p = 0; p < PIN_COUNT && rowCount < 4; ++p) {
+      const uint8_t candidate = PINS[p];
+      bool isColumn = false;
+
+      for (uint8_t c = 0; c < colCount; ++c) {
+        if (candidate == cols[c]) {
+          isColumn = true;
+          break;
+        }
+      }
+
+      if (!isColumn) {
+        rows[rowCount++] = candidate;
+      }
     }
   }
 
@@ -126,9 +144,8 @@ void printGeneratedCode() {
     Serial.println();
     Serial.println("};");
   } else {
-    Serial.println("Could not automatically split the pins into");
-    Serial.println("four rows and four columns.");
-    Serial.println("Use the detected connections above.");
+    Serial.println("Could not determine a valid 4x4 matrix.");
+    Serial.println("Check the keypad wiring and GPIO list.");
   }
 
   Serial.println();
