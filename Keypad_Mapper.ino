@@ -1,20 +1,28 @@
 /*
  * Keypad Mapper
- * Automatically detects the row/column pin pairs of a 4x4 matrix keypad.
+ * Detects electrical connections of common matrix keypads.
  *
- * Default wiring candidates:
- * 13, 12, 27, 26, 25, 33, 32, 23
+ * Supported matrix sizes:
+ *   2x2, 2x3, 2x4
+ *   3x2, 3x3, 3x4
+ *   4x2, 4x3, 4x4
  *
- * Open Serial Monitor at 115200 baud.
- * Press every key once. The detected matrix connections are printed
- * and, after all 16 keys are found, an Arduino Keypad configuration
- * snippet is generated.
+ * Set KEYPAD_ROWS and KEYPAD_COLS below before uploading.
+ * The total number of GPIOs must be ROWS + COLS.
+ *
+ * Default GPIO candidates:
+ *   13, 12, 27, 26, 25, 33, 32, 23
+ *
+ * Open Serial Monitor at 115200 baud and press every key once.
  */
 
 #include <Arduino.h>
 
-constexpr uint8_t PIN_COUNT = 8;
-constexpr uint8_t KEY_COUNT = 16;
+constexpr uint8_t KEYPAD_ROWS = 4;
+constexpr uint8_t KEYPAD_COLS = 4;
+
+constexpr uint8_t PIN_COUNT = KEYPAD_ROWS + KEYPAD_COLS;
+constexpr uint8_t KEY_COUNT = KEYPAD_ROWS * KEYPAD_COLS;
 constexpr unsigned long DEBOUNCE_MS = 50;
 
 const uint8_t PINS[PIN_COUNT] = {
@@ -67,43 +75,62 @@ void addConnection(uint8_t first, uint8_t second) {
   ++foundCount;
 }
 
+bool containsPin(const uint8_t pins[], uint8_t count, uint8_t value) {
+  for (uint8_t i = 0; i < count; ++i) {
+    if (pins[i] == value) return true;
+  }
+  return false;
+}
+
+void printArray(const char* name, const uint8_t pins[], uint8_t count) {
+  Serial.print(name);
+  Serial.println(" = {");
+
+  Serial.print("  ");
+  for (uint8_t i = 0; i < count; ++i) {
+    Serial.print(pins[i]);
+    if (i + 1 < count) Serial.print(", ");
+  }
+  Serial.println();
+  Serial.println("};");
+}
+
 void printGeneratedCode() {
-  uint8_t rows[4];
-  uint8_t cols[4];
+  uint8_t rows[KEYPAD_ROWS];
+  uint8_t cols[KEYPAD_COLS];
   uint8_t rowCount = 0;
   uint8_t colCount = 0;
 
   /*
-   * A valid 4x4 matrix is a complete bipartite graph:
-   * every row is connected to all four columns.
-   * Use the first detected pin as one side of the matrix,
-   * then use its four connected pins as the opposite side.
+   * A complete matrix is a bipartite graph:
+   * each row connects to every column.
+   *
+   * Use the first configured GPIO as a reference row.
+   * Its detected connections are the columns.
    */
   const uint8_t referencePin = PINS[0];
 
   for (uint8_t i = 0; i < foundCount; ++i) {
     if (found[i].first == referencePin) {
-      if (colCount < 4) cols[colCount++] = found[i].second;
+      if (!containsPin(cols, colCount, found[i].second) &&
+          colCount < KEYPAD_COLS) {
+        cols[colCount++] = found[i].second;
+      }
     } else if (found[i].second == referencePin) {
-      if (colCount < 4) cols[colCount++] = found[i].first;
+      if (!containsPin(cols, colCount, found[i].first) &&
+          colCount < KEYPAD_COLS) {
+        cols[colCount++] = found[i].first;
+      }
     }
   }
 
-  if (colCount == 4) {
+  if (colCount == KEYPAD_COLS) {
     rows[rowCount++] = referencePin;
 
-    for (uint8_t p = 0; p < PIN_COUNT && rowCount < 4; ++p) {
+    for (uint8_t p = 0; p < PIN_COUNT && rowCount < KEYPAD_ROWS; ++p) {
       const uint8_t candidate = PINS[p];
-      bool isColumn = false;
 
-      for (uint8_t c = 0; c < colCount; ++c) {
-        if (candidate == cols[c]) {
-          isColumn = true;
-          break;
-        }
-      }
-
-      if (!isColumn) {
+      if (!containsPin(cols, colCount, candidate)) {
         rows[rowCount++] = candidate;
       }
     }
@@ -111,6 +138,11 @@ void printGeneratedCode() {
 
   Serial.println();
   Serial.println("=== Finished ===");
+  Serial.print("Keypad size: ");
+  Serial.print(KEYPAD_ROWS);
+  Serial.print("x");
+  Serial.println(KEYPAD_COLS);
+
   Serial.print("Detected connections: ");
   Serial.println(foundCount);
 
@@ -125,27 +157,16 @@ void printGeneratedCode() {
   Serial.println();
   Serial.println("=== Arduino Keypad Configuration ===");
 
-  if (rowCount == 4 && colCount == 4) {
-    Serial.println("byte rowPins[ROWS] = {");
-    Serial.print("  ");
-    for (uint8_t i = 0; i < 4; ++i) {
-      Serial.print(rows[i]);
-      if (i < 3) Serial.print(", ");
-    }
-    Serial.println();
-    Serial.println("};");
+  if (rowCount == KEYPAD_ROWS && colCount == KEYPAD_COLS) {
+    printArray("byte rowPins[ROWS]", rows, KEYPAD_ROWS);
+    printArray("byte colPins[COLS]", cols, KEYPAD_COLS);
 
-    Serial.println("byte colPins[COLS] = {");
-    Serial.print("  ");
-    for (uint8_t i = 0; i < 4; ++i) {
-      Serial.print(cols[i]);
-      if (i < 3) Serial.print(", ");
-    }
     Serial.println();
-    Serial.println("};");
+    Serial.println("Use these with the Arduino Keypad library.");
   } else {
-    Serial.println("Could not determine a valid 4x4 matrix.");
-    Serial.println("Check the keypad wiring and GPIO list.");
+    Serial.println("Could not determine a valid matrix.");
+    Serial.println("Check the keypad wiring, GPIO list,");
+    Serial.println("and KEYPAD_ROWS / KEYPAD_COLS settings.");
   }
 
   Serial.println();
@@ -158,7 +179,14 @@ void setup() {
 
   Serial.println();
   Serial.println("=== Keypad Mapper ===");
-  Serial.println("Target: 4x4 matrix keypad");
+  Serial.print("Target: ");
+  Serial.print(KEYPAD_ROWS);
+  Serial.print("x");
+  Serial.println(KEYPAD_COLS);
+
+  Serial.print("Expected keys: ");
+  Serial.println(KEY_COUNT);
+
   Serial.println("Press every key once.");
   Serial.println();
 
@@ -170,6 +198,7 @@ void setup() {
 void loop() {
   if (foundCount >= KEY_COUNT) {
     printGeneratedCode();
+
     while (true) {
       delay(1000);
     }
