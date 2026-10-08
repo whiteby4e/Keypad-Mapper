@@ -95,6 +95,21 @@ void printArray(const char* name, const uint8_t pins[], uint8_t count) {
   Serial.println("};");
 }
 
+bool hasConnection(uint8_t first, uint8_t second) {
+  return connectionExists(first, second);
+}
+
+bool isCompleteMatrix(const uint8_t rows[], const uint8_t cols[]) {
+  for (uint8_t r = 0; r < KEYPAD_ROWS; ++r) {
+    for (uint8_t c = 0; c < KEYPAD_COLS; ++c) {
+      if (!hasConnection(rows[r], cols[c])) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 void printGeneratedCode() {
   uint8_t rows[KEYPAD_ROWS];
   uint8_t cols[KEYPAD_COLS];
@@ -157,15 +172,17 @@ void printGeneratedCode() {
   Serial.println();
   Serial.println("=== Arduino Keypad Configuration ===");
 
-  if (rowCount == KEYPAD_ROWS && colCount == KEYPAD_COLS) {
+  if (rowCount == KEYPAD_ROWS && colCount == KEYPAD_COLS &&
+      isCompleteMatrix(rows, cols)) {
     printArray("byte rowPins[ROWS]", rows, KEYPAD_ROWS);
     printArray("byte colPins[COLS]", cols, KEYPAD_COLS);
 
     Serial.println();
     Serial.println("Use these with the Arduino Keypad library.");
   } else {
-    Serial.println("Could not determine a valid matrix.");
+    Serial.println("Could not determine a complete matrix.");
     Serial.println("Check the keypad wiring, GPIO list,");
+    Serial.println("and make sure every row/column intersection was pressed.");
     Serial.println("and KEYPAD_ROWS / KEYPAD_COLS settings.");
   }
 
