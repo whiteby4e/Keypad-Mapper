@@ -1,10 +1,25 @@
+<div align="center">
+
 # Keypad Mapper
 
-A small Arduino/ESP32 utility for identifying the pin pairs of common **matrix keypads**.
+**Find the row and column pins of an unknown matrix keypad.**
 
-The mapper scans a configurable set of GPIO pins, detects which two pins are connected by each key, records the matrix connections, and prints Arduino Keypad row/column configuration to the Serial Monitor.
+An Arduino utility that detects electrical connections between keypad wires and prints ready-to-copy row/column arrays for the Arduino Keypad library.
 
-## Supported Sizes
+![Platform](https://img.shields.io/badge/Platform-ESP32%20%2F%20Arduino-blue)
+![License](https://img.shields.io/badge/License-MIT-green)
+
+</div>
+
+---
+
+## 🔍 What problem does it solve?
+
+When a matrix keypad has unlabeled wires, identifying the row and column order can be tedious. Keypad Mapper scans a configurable set of GPIOs, records the pin pairs connected by each key, and derives a row/column configuration when the expected matrix is complete.
+
+It identifies **electrical connections**, not the printed key labels (1, 2, A, etc.).
+
+## ✨ Supported matrix sizes
 
 | Rows | Columns | Keys |
 |---:|---:|---:|
@@ -18,136 +33,80 @@ The mapper scans a configurable set of GPIO pins, detects which two pins are con
 | 4 | 3 | 12 |
 | 4 | 4 | 16 |
 
-The most common keypad sizes are **2x4, 3x4, and 4x4**.
+A typical 1×4 keypad with four independent button wires is **not** a matrix keypad and is not supported by this version.
 
-> Note: a typical 1x4 keypad with four independent button wires is not a matrix keypad and is not handled by this version.
+## ⚡ Quick start
 
-## Features
+1. Open `Keypad_Mapper.ino` in Arduino IDE.
+2. Set the matrix dimensions.
+3. Connect the keypad wires to the selected GPIO candidates.
+4. Select your board and upload.
+5. Open Serial Monitor at **115200 baud**.
+6. Press every key once.
+7. Copy the generated row and column arrays into your keypad project.
 
-- Supports multiple matrix keypad sizes
-- Automatically detects key-to-pin connections
-- Configurable row/column count
-- Works with configurable GPIO candidates
-- Uses internal pull-up resistors
-- Includes debounce handling
-- Prevents duplicate connections
-- Prints ready-to-copy Arduino Keypad row/column arrays
-- No display or extra hardware required
+## ⚙️ Configuration
 
-## Configuration
+Set the matrix size near the top of the sketch:
 
-Open \`Keypad_Mapper.ino\` and change:
-
-\`\`\`cpp
+```cpp
 constexpr uint8_t KEYPAD_ROWS = 4;
 constexpr uint8_t KEYPAD_COLS = 4;
-\`\`\`
+```
 
-For a 2x4 keypad:
+For a 2×4 keypad:
 
-\`\`\`cpp
+```cpp
 constexpr uint8_t KEYPAD_ROWS = 2;
 constexpr uint8_t KEYPAD_COLS = 4;
-\`\`\`
-
-For a 3x4 keypad:
-
-\`\`\`cpp
-constexpr uint8_t KEYPAD_ROWS = 3;
-constexpr uint8_t KEYPAD_COLS = 4;
-\`\`\`
+```
 
 The number of GPIOs required is always:
 
-\`\`\`text
+```text
 ROWS + COLS
-\`\`\`
+```
 
-Examples:
+Examples: 2×4 needs 6 GPIOs, 3×4 needs 7, and 4×4 needs 8.
 
-- 2x4 -> 6 GPIOs
-- 3x4 -> 7 GPIOs
-- 4x4 -> 8 GPIOs
+## 🔌 Wiring
 
-## Hardware
+The default ESP32 GPIO candidates are:
 
-- ESP32 or another Arduino-compatible board
-- Matrix keypad
-- USB cable
+```text
+13, 14, 27, 26, 25, 33, 32, 23
+```
 
-### Default GPIO candidates
+GPIO12 is intentionally excluded because it is an ESP32 strapping pin and can affect boot configuration if an attached keypad pulls it to the wrong level during reset.
 
-The sketch currently contains eight GPIO candidates:
+Connect the keypad wires to these GPIOs in any physical order. For smaller matrices, the sketch uses the first `ROWS + COLS` entries.
 
-\`\`\`text
-13, 12, 27, 26, 25, 33, 32, 23
-\`\`\`
+**Do not connect the keypad wires to 5V.** The sketch uses the board's internal pull-ups and directly scans GPIO connections. Check the logic-level and pin restrictions of your exact board before wiring.
 
-For smaller keypads, only the first \`ROWS + COLS\` entries are used.
+## 🖨️ Example output
 
-Change the \`PINS\` array in \`Keypad_Mapper.ino\` if you want to use different GPIOs.
+After all expected keys are detected, the sketch prints the discovered connections and, if a complete matrix can be determined, an Arduino Keypad configuration:
 
-## Wiring
-
-Connect the keypad wires to the GPIOs listed in \`PINS[]\`. The physical order of the wires does not need to be known beforehand.
-
-For example, a 2x4 keypad needs six GPIOs:
-
-\`\`\`text
-Keypad -> ESP32
-6 wires -> GPIO 13, 12, 27, 26, 25, 33
-\`\`\`
-
-**Do not connect the keypad to 5V.** The mapper uses the GPIO internal pull-ups and reads the matrix directly.
-
-## Usage
-
-1. Set \`KEYPAD_ROWS\` and \`KEYPAD_COLS\`.
-2. Make sure \`PINS[]\` contains at least \`ROWS + COLS\` suitable GPIOs.
-3. Upload \`Keypad_Mapper.ino\`.
-4. Open Arduino IDE Serial Monitor.
-5. Set the baud rate to **115200**.
-6. Press every keypad key once.
-7. The mapper prints each detected connection.
-8. After all expected keys are detected, it prints the row/column arrays.
-9. Copy those arrays into your Arduino Keypad project.
-
-Example for a 4x4 keypad:
-
-\`\`\`text
-=== Keypad Mapper ===
-Target: 4x4
-Expected keys: 16
-Press every key once.
-
-Key 1: 13 <-> 27
-Key 2: 13 <-> 26
-...
-Key 16: 23 <-> 25
-
-=== Finished ===
-Keypad size: 4x4
-Detected connections: 16
-
-=== Arduino Keypad Configuration ===
+```cpp
 byte rowPins[ROWS] = {
-  ...
+  // detected GPIOs
 };
 
 byte colPins[COLS] = {
-  ...
+  // detected GPIOs
 };
-\`\`\`
+```
 
-## Important Notes
+The actual pin values depend on your keypad and wiring.
 
-- This project handles **matrix keypads**.
-- It identifies electrical matrix connections, not printed labels such as \`1\`, \`2\`, \`3\`, \`A\`, etc.
-- GPIO candidates must support the required input/output modes.
-- Avoid GPIOs that are unavailable, input-only, or reserved by your board.
-- On ESP32, check your specific board's GPIO restrictions before changing \`PINS[]\`.
-- For smaller matrices, make sure the configured GPIO list contains enough usable pins.
+## ⚠️ Important notes
 
-## License
+- This version supports matrix keypads only.
+- Press every key once so every row/column intersection can be detected.
+- GPIO candidates must support the required input and output modes.
+- Avoid input-only, reserved, or board-specific restricted pins.
+- If the mapper cannot determine a complete matrix, check the dimensions, wiring, and whether every key was pressed.
 
-MIT License. See [LICENSE](LICENSE).
+## 📄 License
+
+MIT — see [LICENSE](LICENSE).

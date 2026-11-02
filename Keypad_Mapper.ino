@@ -10,9 +10,10 @@
  * Set KEYPAD_ROWS and KEYPAD_COLS below before uploading.
  * The total number of GPIOs must be ROWS + COLS.
  *
- * Default GPIO candidates:
- *   13, 12, 27, 26, 25, 33, 32, 23
+ * Default ESP32 GPIO candidates:
+ *   13, 14, 27, 26, 25, 33, 32, 23
  *
+ * GPIO12 is intentionally avoided because it is an ESP32 strapping pin.
  * Open Serial Monitor at 115200 baud and press every key once.
  */
 
@@ -26,7 +27,7 @@ constexpr uint8_t KEY_COUNT = KEYPAD_ROWS * KEYPAD_COLS;
 constexpr unsigned long DEBOUNCE_MS = 50;
 
 const uint8_t PINS[PIN_COUNT] = {
-  13, 12, 27, 26, 25, 33, 32, 23
+  13, 14, 27, 26, 25, 33, 32, 23
 };
 
 struct KeyConnection {
@@ -116,13 +117,7 @@ void printGeneratedCode() {
   uint8_t rowCount = 0;
   uint8_t colCount = 0;
 
-  /*
-   * A complete matrix is a bipartite graph:
-   * each row connects to every column.
-   *
-   * Use the first configured GPIO as a reference row.
-   * Its detected connections are the columns.
-   */
+  // Use the first configured GPIO as a reference row.
   const uint8_t referencePin = PINS[0];
 
   for (uint8_t i = 0; i < foundCount; ++i) {
@@ -183,7 +178,7 @@ void printGeneratedCode() {
     Serial.println("Could not determine a complete matrix.");
     Serial.println("Check the keypad wiring, GPIO list,");
     Serial.println("and make sure every row/column intersection was pressed.");
-    Serial.println("and KEYPAD_ROWS / KEYPAD_COLS settings.");
+    Serial.println("Check KEYPAD_ROWS / KEYPAD_COLS settings.");
   }
 
   Serial.println();
