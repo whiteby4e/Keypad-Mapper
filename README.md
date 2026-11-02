@@ -71,11 +71,13 @@ Examples: 2×4 needs 6 GPIOs, 3×4 needs 7, and 4×4 needs 8.
 
 ## 🔌 Wiring
 
-The default GPIO candidates are:
+The default ESP32 GPIO candidates are:
 
 ```text
-13, 12, 27, 26, 25, 33, 32, 23
+13, 14, 27, 26, 25, 33, 32, 23
 ```
+
+GPIO12 is intentionally excluded because it is an ESP32 strapping pin and can affect boot configuration if an attached keypad pulls it to the wrong level during reset.
 
 Connect the keypad wires to these GPIOs in any physical order. For smaller matrices, the sketch uses the first `ROWS + COLS` entries.
 
